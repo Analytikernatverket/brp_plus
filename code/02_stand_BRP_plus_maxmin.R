@@ -249,6 +249,8 @@ brpplus_stand_maxmin %>% summary
 
 brpplus_stand_maxmin %>% glimpse
 
+
+
 ################################################################################
 ### Exportera till 2 filer för kommun & region
 # Exporterat innehåll klistras in i flikarna
