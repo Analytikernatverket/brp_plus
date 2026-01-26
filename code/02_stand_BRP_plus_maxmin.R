@@ -1,14 +1,15 @@
 
-# Import av BRP_plus_data_base ####
+# Import av BRP_plus_brpplus_data_base_base ####
 if (!require("pacman")) install.packages("pacman") 
 pacman::p_load(tidyverse, rKolada, readxl, pbapply, here, conflicted) # Ladda paket, eller installera dem om de inte finns och ladda dem sen
 conflicted::conflict_prefer("filter", "dplyr") # Om flera paket har funktionen "filter()" använd alltid dplyr-paketet som sandard för "filter()" 
+conflicted::conflict_prefer("lag", "dplyr") # Om flera paket har funktionen "lag()" använd alltid dplyr-paketet som sandard för "lag()" 
 
 # Om nödvändigt, rensa Environment
-# rm(list=ls())
+ rm(list=ls())
 
-# Hitta mapp där hela RProject är sparat och skapa path för /data ZIP-filen med data_base
-zip_path  <- here::here("data", "BRP_plus_data_base.zip")
+# Hitta mapp där hela RProject är sparat och skapa path för /brpplus_data_base ZIP-filen med brpplus_data_base_base
+zip_path  <- here::here("brpplus_data_base", "BRP_plus_data_base.zip")
 
 # One-block: unzip to temp, read CSV, remove temp automatically
 brpplus_data_base <- {
@@ -18,45 +19,222 @@ brpplus_data_base <- {
                       data <- read.csv2(csv_file, stringsAsFactors = FALSE) # read CSV
                       data # return the data
                       }
+# Ta bort brpplus_data_baseframe 'data'
+rm(data)
 
 # check
 head(brpplus_data_base)
 
 
-
 ################################################################################
 ### Standardisering enligt "max-min-metoden"
 # Villkor: min != max + Omvänd skala
-
-# LOG OCH KÖNSUPPDELAD = värden utanför 0 och 100
-# max värde = senaste år + total (ej separat för män och kvinnor)
+#
+# Standardiseringen görs inom enskilda indikatorer och inom regioner ELLER kommuner. 
+#
+# Senaste året används alltid som bas, i.e., max(year), men man kan lägga till ett laggat år.
+# Det laggade året också använder max(year) som bas. 
+# Default-värde på laggat år är -5, om detta ska ändras görs det i anropet. 
+#
+#
+# Det finns tre sätt att hantera könsuppdelningen: 
+#
+# a) total_bas 
+#     Basen som används är allid "Kön = Totalt" 
+#     Möjliggör jämförelse mellan könen inom kommunerna eller regionerna. (Standard!)
+#
+# b) separat_bas
+#     Basen som används är separat för "Kön = Totalt", "Kön = Män" eller "Kön = Kvinnor". 
+#     Möjliggör jämförelse inom könen mellan kommunerna eller regionerna. 
+#
+# c) sammantaget_bas 
+#     Basen som används är "Kön = ALL" över alla kön tillsammans. 
+#     Möjliggör jämförelse mellan kommunerna eller regionerna oberoende av kön. 
 
 ################################################################################
-brpplus_stand_maxmin <- brpplus_data_base %>%
+standardisera_maxmin <- function(brpplus_data_base,
+                                 gender_mode = c("total_bas",
+                                                 "separat_bas",
+                                                 "sammantaget_bas"),
+                                 year_mode   = c("latest_year",
+                                                 "latest_year_lag"),
+                                 lag = 5, # <-- antal laggade år (ändras i anropet vid behov)
+                                 validate = TRUE) {
   
-  ### Standardisera värden, per kommuntyp, genus, år
-  group_by(kpi, municipality_type, gender, year) %>% 
+  library(dplyr)
   
-  mutate(standard_value = case_when(
-    # omvänd skala = 0: beräkna vanligt 
-    Omvand_skala==1 & 
-      min(value, na.rm=TRUE) != max(value, na.rm=TRUE)  ~ 
-      100*( (max(value, na.rm=TRUE) - value)  / (max(value, na.rm=TRUE) - min(value, na.rm=TRUE)) )  ,
+  gender_mode <- match.arg(gender_mode)
+  year_mode   <- match.arg(year_mode)
+  
+  # ============================
+  # KPI-specifik årshantering (robust och varningsfri)
+  # ============================
+  years_per_kpi <- brpplus_data_base %>%
+    group_by(kpi) %>%
+    summarise(years = list(year), .groups = "drop") %>%
+    rowwise() %>%
+    mutate(
+      latest_year = max(unlist(years), na.rm = TRUE),
+      target_year = latest_year - lag,
+      selected_year_per_kpi = case_when(
+        year_mode == "latest_year" ~ latest_year,
+        year_mode == "latest_year_lag" ~ {
+          yrs <- unlist(years)
+          lower_yrs <- yrs[yrs <= target_year]
+          if(length(lower_yrs) > 0) {
+            max(lower_yrs)
+          } else {
+            # ingen finns ≤ target_year → välj närmaste
+            yrs[which.min(abs(yrs - target_year))]
+          }
+        }
+      )
+    ) %>%
+    ungroup() %>%
+    select(kpi, selected_year_per_kpi)
+  
+  # ============================
+  # Bas-data: ALLTID latest_year (per KPI)
+  # ============================
+  base_data <- brpplus_data_base %>%
+    left_join(years_per_kpi %>% 
+                rename(latest_year_per_kpi = selected_year_per_kpi),
+              by = "kpi") %>%
+    group_by(kpi) %>%
+    mutate(latest_year_per_kpi = max(year, na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(year == latest_year_per_kpi)
+  
+  
+  # ============================
+  # Slå ihop årsinformation med datan och filtrera
+  # ============================
+  data2 <- brpplus_data_base %>%
+    left_join(years_per_kpi, by = "kpi") %>%
+    filter(year == selected_year_per_kpi)
+  
+  # ============================
+  # Validering (saknade kön, logg)
+  # ============================
+  if(validate){
+    message("=== Validering pågår ===")
     
-    # omvänd skala = 1: beräkna omvänt
-    Omvand_skala==0 & 
-      min(value, na.rm=TRUE) != max(value, na.rm=TRUE) ~ 
-      100*( (value - min(value, na.rm=TRUE) )  / (max(value, na.rm=TRUE) - min(value, na.rm=TRUE)) ),
+    missing_gender <- data2 %>%
+      group_by(kpi, municipality_type, year) %>%
+      summarise(
+        missing_genders = list(setdiff(c("T","K","M"), gender)),
+        .groups = "drop"
+      ) %>%
+      filter(lengths(missing_genders) > 0)
     
-    # övriga = 0
-    TRUE ~ 0
-  )
-  ) %>% 
-  ungroup
+    if(nrow(missing_gender) > 0){
+      message("Obs! Saknade kön (per KPI:s valda år):")
+      print(missing_gender)
+    } else {
+      message("Alla kön finns för respektive KPI:s valda år")
+    }
+  }
+  
+  # ============================
+  # Standardisering
+  # ============================
+  if (gender_mode == "total_bas") {
+    ref_table <- base_data %>%
+      filter(gender == "T") %>%
+      group_by(kpi, municipality_type, Omvand_skala) %>%
+      summarise(
+        min_ref = min(value, na.rm = TRUE),
+        max_ref = max(value, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    result <- data2 %>%
+      left_join(ref_table, by = c("kpi", "municipality_type", "Omvand_skala")) %>%
+      mutate(standard_value = case_when(
+        Omvand_skala == 1 & min_ref != max_ref ~
+          100 * ((max_ref - value) / (max_ref - min_ref)),
+        Omvand_skala == 0 & min_ref != max_ref ~
+          100 * ((value - min_ref) / (max_ref - min_ref)),
+        TRUE ~ 0
+      )) %>%
+      select(-min_ref, -max_ref)
+    
+    return(result)
+    
+  } else if (gender_mode == "separat_bas") {
+    ref_table <- base_data %>%
+      group_by(kpi, municipality_type, Omvand_skala, gender) %>%
+      summarise(
+        min_ref = min(value, na.rm = TRUE),
+        max_ref = max(value, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    result <- data2 %>%
+      left_join(ref_table,
+                by = c("kpi", "municipality_type", "Omvand_skala","gender")) %>%
+      mutate(standard_value = case_when(
+        Omvand_skala == 1 & min_ref != max_ref ~
+          100 * ((max_ref - value) / (max_ref - min_ref)),
+        Omvand_skala == 0 & min_ref != max_ref ~
+          100 * ((value - min_ref) / (max_ref - min_ref)),
+        TRUE ~ 0
+      )) %>%
+      select(-min_ref, -max_ref)
+    
+    return(result)
+    
+  } else if (gender_mode == "sammantaget_bas") {
+    ref_table <- base_data %>%
+      group_by(kpi, municipality_type, Omvand_skala) %>%
+      summarise(
+        min_ref = min(value, na.rm = TRUE),
+        max_ref = max(value, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    result <- data2 %>%
+      left_join(ref_table, by = c("kpi", "municipality_type", "Omvand_skala")) %>%
+      mutate(standard_value = case_when(
+        Omvand_skala == 1 & min_ref != max_ref ~
+          100 * ((max_ref - value) / (max_ref - min_ref)),
+        Omvand_skala == 0 & min_ref != max_ref ~
+          100 * ((value - min_ref) / (max_ref - min_ref)),
+        TRUE ~ 0
+      )) %>%
+      select(-min_ref, -max_ref)
+    
+    return(result)
+  }
+}
+# ####
+
+#### Skapa max-min-standardisering ####
+# Standardisering + validering för senaste året
+brpplus_stand_maxmin <- standardisera_maxmin(
+  brpplus_data_base,
+  gender_mode = "total_bas",
+  year_mode   = "latest_year",
+  validate    = TRUE
+)
+
+
+#### Anrop till max-min-standardisering för laggat år ####
+# Standardisering + validering för senaste året minus laggade år (default lag = 5)
+brpplus_stand_maxmin_lag <- standardisera_maxmin(
+  brpplus_data_base,
+  gender_mode = "total_bas",
+  year_mode   = "latest_year_lag",
+  lag         = 5,
+  validate    = TRUE
+)
+
+
+
 
 ### kontrollera så omvands_skala fortf är unik för varje kpi
 # Detta anrop ska resultera i en tom tabell
-brpplus_stand_maxmin %>% group_by(kpi, Omvand_skala) %>% tally %>% 
+test <- brpplus_stand_maxmin %>% group_by(kpi, Omvand_skala) %>% tally %>% 
   pivot_wider(names_from = Omvand_skala, values_from=n) %>% drop_na
 
 brpplus_stand_maxmin %>% 
@@ -71,13 +249,15 @@ brpplus_stand_maxmin %>% summary
 
 brpplus_stand_maxmin %>% glimpse
 
+
+
 ################################################################################
 ### Exportera till 2 filer för kommun & region
 # Exporterat innehåll klistras in i flikarna
-# "Dataunderlag_region" och "Dataunderlag_kommun" i filen "Data och index BRP+ 2022.xlsx"
+# "brpplus_data_baseunderlag_region" och "brpplus_data_baseunderlag_kommun" i filen "brpplus_data_base och index BRP+ 2022.xlsx"
 ################################################################################
-### Skapa funktion för att exportera resultatdata
-exportera_brpplusdata <- function(obj, 
+### Skapa funktion för att exportera resultatbrpplus_data_base
+exportera_brpplusbrpplus_data_base <- function(obj, 
                                   filnamnet) {
   obj %>%
     # filter(municipality!="Riket") %>% 
@@ -151,24 +331,26 @@ exportera_brpplusdata <- function(obj,
   brpplus_stand_maxmin <- brpplus_stand_maxmin %>% mutate(municipality_type = if_else(is.na(municipality_type) & municipality=="Riket", 
                                                                                       "L", municipality_type))
 
-brpplus_stand_maxmin %>% exportera_brpplusdata("brpplus_resultat.xlsx")
+brpplus_stand_maxmin %>% exportera_brpplusbrpplus_data_base("brpplus_resultat.xlsx")
 
 ### Exportera län
-# brpplus_stand_maxmin %>% export_data_lan_kommun("L","brp_plus dataunderlag_region.csv")
+# brpplus_stand_maxmin %>% export_brpplus_data_base_lan_kommun("L","brp_plus brpplus_data_baseunderlag_region.csv")
 ### Exportera kommun
-# brpplus_stand_maxmin %>% export_data_lan_kommun("K","brp_plus dataunderlag_kommun.csv")
+# brpplus_stand_maxmin %>% export_brpplus_data_base_lan_kommun("K","brp_plus brpplus_data_baseunderlag_kommun.csv")
 
 
 
 ################################################################################
-## kontrollera lite data
+## kontrollera lite brpplus_data_base
 ################################################################################
 # Alla kpi-texter från Burt är desamma i slutresultatet
-check_df <- metadata_kpi %>% distinct(kpi_text) %>% arrange(kpi_text) %>% rename(burt_kpi_text = kpi_text) %>% drop_na %>%  
-  cbind(brpplus_data %>% distinct(kpi, kpi_text) %>% arrange(kpi_text)  ) %>% 
+check_df <- metabrpplus_data_base_kpi %>% distinct(kpi_text) %>% arrange(kpi_text) %>% rename(burt_kpi_text = kpi_text) %>% drop_na %>%  
+  cbind(brpplus_brpplus_data_base %>% distinct(kpi, kpi_text) %>% arrange(kpi_text)  ) %>% 
   mutate(check= if_else(burt_kpi_text == kpi_text, 1, 0))
 
 #check_df %>% view
 check_df %>% glimpse
 check_df %>% str
 check_df %>% tally(check)
+
+
