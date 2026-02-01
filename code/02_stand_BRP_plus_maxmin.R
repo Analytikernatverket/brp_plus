@@ -6,24 +6,35 @@ conflicted::conflict_prefer("filter", "dplyr") # Om flera paket har funktionen "
 conflicted::conflict_prefer("lag", "dplyr") # Om flera paket har funktionen "lag()" använd alltid dplyr-paketet som sandard för "lag()" 
 
 # Om nödvändigt, rensa Environment
- rm(list=ls())
+#  rm(list=ls())
 
 # Hitta mapp där hela RProject är sparat och skapa path för /brpplus_data_base ZIP-filen med brpplus_data_base_base
-zip_path  <- here::here("brpplus_data_base", "BRP_plus_data_base.zip")
+zip_path <- here::here("data", "BRP_plus_data_base.zip")
+
 
 # One-block: unzip to temp, read CSV, remove temp automatically
 brpplus_data_base <- {
-                      tmp_dir <- tempdir() # create a temporary folder
-                      unzip(zip_path, exdir = tmp_dir) # unzip the CSV to the temp folder
-                      csv_file <- list.files(tmp_dir, pattern = "\\.csv$", full.names = TRUE) # find the CSV file (assumes only one CSV in the ZIP)
-                      data <- read.csv2(csv_file, stringsAsFactors = FALSE) # read CSV
-                      data # return the data
-                      }
-# Ta bort brpplus_data_baseframe 'data'
-rm(data)
+  tmp_dir <- tempdir() # create a temporary folder
+  unzip(zip_path, exdir = tmp_dir) # unzip the CSV to the temp folder
+  csv_file <- list.files(tmp_dir, pattern = "\\.csv$", full.names = TRUE) # find the CSV file (assumes only one CSV in the ZIP)
+  read.csv2(csv_file, stringsAsFactors = FALSE) # read CSV
+}
 
-# check
+# Kontrollera att importen fungerade
 head(brpplus_data_base)
+n_distinct(brpplus_data_base$kpi)
+
+
+# Hantera "Riket" och ge det en egen grupptillhörighet i municipality_type 
+# Värden för "Riket" påverkar då inte standardiserigen eller indexberäkningen
+brpplus_data_base <- brpplus_data_base %>%
+  mutate(
+    municipality_type = if_else(
+      municipality == "Riket",
+      "R",
+      municipality_type
+    )
+  )
 
 
 ################################################################################
@@ -209,7 +220,7 @@ standardisera_maxmin <- function(brpplus_data_base,
 }
 # ####
 
-#### Skapa max-min-standardisering ####
+# Skapa max-min-standardisering ####
 # Standardisering + validering för senaste året
 brpplus_stand_maxmin <- standardisera_maxmin(
   brpplus_data_base,
@@ -218,26 +229,23 @@ brpplus_stand_maxmin <- standardisera_maxmin(
   validate    = TRUE
 )
 
-
-#### Anrop till max-min-standardisering för laggat år ####
+# Skapa max-min-standardisering för laggat år ####
 # Standardisering + validering för senaste året minus laggade år (default lag = 5)
 brpplus_stand_maxmin_lag <- standardisera_maxmin(
   brpplus_data_base,
   gender_mode = "total_bas",
   year_mode   = "latest_year_lag",
-  lag         = 5,
+  lag         = 5,  # Ändra detta värde för att justera lag
   validate    = TRUE
 )
 
 
-
-
-### kontrollera så omvands_skala fortf är unik för varje kpi
-# Detta anrop ska resultera i en tom tabell
-test <- brpplus_stand_maxmin %>% group_by(kpi, Omvand_skala) %>% tally %>% 
+# Kontroll 1: Kontrollera så omvands_skala fortf är unik för varje kpi -- detta anrop ska resultera i en tom tabell
+test_1 <- brpplus_stand_maxmin %>% group_by(kpi, Omvand_skala) %>% tally %>% 
   pivot_wider(names_from = Omvand_skala, values_from=n) %>% drop_na
 
-brpplus_stand_maxmin %>% 
+# Kontroll 2: Skapa en översikt för de sandardiserade värden
+test_2 <- brpplus_stand_maxmin %>% 
   group_by(kpi_text, municipality_type, gender, year, Omvand_skala) %>% 
   summarise(min=min(standard_value), 
             max=max(standard_value),
@@ -245,11 +253,177 @@ brpplus_stand_maxmin %>%
             max_value = max(value)
   ) 
 
-brpplus_stand_maxmin %>% summary
+# Kontroll 3: Undersök den statistika översikten
+test_3 <- brpplus_stand_maxmin %>% summary
 
-brpplus_stand_maxmin %>% glimpse
+# Kontroll 4: Se alla kolumners värden
+test_4 <- brpplus_stand_maxmin %>% glimpse
+
+# ####
 
 
+###############################################################
+# Beräkning av indexvärden på aspekt-, tema- och del-nivå för regioner och kommuner ####
+#
+# Översikt:
+#   - Tar utgångspunkt i standard_value från dataframe brpplus_stand_maxmin.
+#     - Steg 1: Beräkna medelvärden per municipality_type för Aspekt, Tema och Del.
+#     - Steg 2: Beräkna rikssnitt (Riket) från län (municipality_type == "L") och 
+#               kommun  (municipality_type == "K") separat.
+#     - Steg 3: Sätt in rikssnitten i tabellen genom att ersätta Riket-radernas
+#               mellanliggande 0-värden med de nya beräknade rikssnitten.
+#
+# Antaganden och logik:
+#  - Municipality_type ska innehålla "K" (kommun), "L" (län) och "R" (Riket).
+#  - Riket har standard_value = 0 efter standardiseringen — detta är OK,
+#    eftersom Riket inte ska påverka spridningen mellan län.
+#  - Rikssnittet ska beräknas från länens och kommunernas indexvärden 
+#    separat och appliceras på Rikets rader i slutsteget.
+#  - Rikssnittet beräknas sparat eftersom vissa indikatorer enbart
+#    innehåller region- eller kommunvärden.
+#
+# I slutsteget rensas hjälpkolumner och slutresultat innehåller de slutliga indexvärden: 
+#      mean_region_aspekt_final, mean_region_tema_final, mean_region_del_final,
+#      mean_kommun_aspekt_final, mean_kommun_tema_final, mean_kommun_del_final
+#
+###############################################################
+
+# 1) Beräkna medelvärde för kommun, region och Riket
+#    Eftersom vi beräknar ett rikssnitt med regionindexvärdena är fortfarande Riket = 0 i detta steget, det är ok. 
+brpplus_stand_maxmin_index <- brpplus_stand_maxmin %>%
+  
+  # 1a) Aspekt: medel per Del, Tema, Aspekt, municipality, municipality_type, gender
+  group_by(Del, Tema, Aspekt, municipality, municipality_type, gender) %>%
+  mutate(mean_aspekt_standard = mean(standard_value, na.rm = TRUE)) %>%
+  ungroup() %>%
+  
+  # 1b) Tema: medel av aspekt-medel för varje Del, Tema, municipality, municipality_type, gender
+  group_by(Del, Tema, municipality, municipality_type, gender) %>%
+  mutate(mean_tema_standard = mean(mean_aspekt_standard, na.rm = TRUE)) %>%
+  ungroup() %>%
+  
+  # 1c) Del: medel av tema-medel för varje Del, municipality, municipality_type, gender
+  group_by(Del, municipality, municipality_type, gender) %>%
+  mutate(mean_del_standard = mean(mean_tema_standard, na.rm = TRUE)) %>%
+  ungroup()
+
+
+# 2) Beräkna rikssnitt enbart från län (L) och kommuner (K) separat
+# 2a) Beräkna regionalt rikssnitt för varje aspekt
+riket_region_aspekt <- brpplus_stand_maxmin_index %>%
+  filter(municipality_type == "L") %>%
+  distinct(Del, Tema, Aspekt, municipality, gender, mean_aspekt_standard) %>%
+  group_by(Del, Tema, Aspekt, gender) %>%
+  summarise(riket_region_aspekt = mean(mean_aspekt_standard, na.rm = TRUE), .groups = "drop")
+
+# 2b) Beräkna regionalt rikssnitt för varje tema
+riket_region_tema <- brpplus_stand_maxmin_index %>%
+  filter(municipality_type == "L") %>%
+  distinct(Del, Tema, municipality, gender, mean_tema_standard) %>%
+  group_by(Del, Tema, gender) %>%
+  summarise(riket_region_tema = mean(mean_tema_standard, na.rm = TRUE), .groups = "drop")
+
+# 2c) Beräkna regionalt rikssnitt för varje del
+riket_region_del <- brpplus_stand_maxmin_index %>%
+  filter(municipality_type == "L") %>%
+  distinct(Del, municipality, gender, mean_del_standard) %>%
+  group_by(Del, gender) %>%
+  summarise(riket_region_del = mean(mean_del_standard, na.rm = TRUE), .groups = "drop")
+
+# 2d) Beräkna kommunalt rikssnitt för varje aspekt
+riket_kommun_aspekt <- brpplus_stand_maxmin_index %>%
+  filter(municipality_type == "K") %>%
+  distinct(Del, Tema, Aspekt, municipality, gender, mean_aspekt_standard) %>%
+  group_by(Del, Tema, Aspekt, gender) %>%
+  summarise(riket_kommun_aspekt = mean(mean_aspekt_standard, na.rm = TRUE), .groups = "drop")
+
+# 2e) Beräkna kommunalt rikssnitt för varje tema
+riket_kommun_tema <- brpplus_stand_maxmin_index %>%
+  filter(municipality_type == "K") %>%
+  distinct(Del, Tema, municipality, gender, mean_tema_standard) %>%
+  group_by(Del, Tema, gender) %>%
+  summarise(riket_kommun_tema = mean(mean_tema_standard, na.rm = TRUE), .groups = "drop")
+
+# 2f) Beräkna kommunalt rikssnitt för varje del
+riket_kommun_del <- brpplus_stand_maxmin_index %>%
+  filter(municipality_type == "K") %>%
+  distinct(Del, municipality, gender, mean_del_standard) %>%
+  group_by(Del, gender) %>%
+  summarise(riket_kommun_del = mean(mean_del_standard, na.rm = TRUE), .groups = "drop")
+
+
+# 3) Slå ihop rikssnitten in i tabellen
+brpplus_stand_maxmin_final <- brpplus_stand_maxmin_index %>%
+  
+  # Join region-rikssnitt
+  left_join(riket_region_aspekt, by = c("Del","Tema","Aspekt","gender")) %>%
+  left_join(riket_region_tema,   by = c("Del","Tema","gender")) %>%
+  left_join(riket_region_del,    by = c("Del","gender")) %>%
+  
+  # Join kommun-rikssnitt
+  left_join(riket_kommun_aspekt, by = c("Del","Tema","Aspekt","gender")) %>%
+  left_join(riket_kommun_tema,   by = c("Del","Tema","gender")) %>%
+  left_join(riket_kommun_del,    by = c("Del","gender")) %>%
+  
+  mutate(
+    # Region-baserade slutvärden
+    mean_region_aspekt_final = if_else(municipality_type == "R", riket_region_aspekt, mean_aspekt_standard),
+    mean_region_tema_final   = if_else(municipality_type == "R", riket_region_tema,   mean_tema_standard),
+    mean_region_del_final    = if_else(municipality_type == "R", riket_region_del,    mean_del_standard),
+    
+    # Kommun-baserade slutvärden
+    mean_kommun_aspekt_final = if_else(municipality_type == "R", riket_kommun_aspekt, mean_aspekt_standard),
+    mean_kommun_tema_final   = if_else(municipality_type == "R", riket_kommun_tema,   mean_tema_standard),
+    mean_kommun_del_final    = if_else(municipality_type == "R", riket_kommun_del,    mean_del_standard)
+  ) %>%
+  
+  # Städa bort hjälpkollumner
+  select(
+    -riket_region_aspekt, -riket_region_tema, -riket_region_del,
+    -riket_kommun_aspekt, -riket_kommun_tema, -riket_kommun_del,
+    -mean_aspekt_standard, -mean_tema_standard, -mean_del_standard
+  )
+
+
+# 4) Kontroll
+kontroll1 <- brpplus_stand_maxmin_final %>%
+  filter(Del == "Livskvalitet", 
+         gender == "T", 
+         municipality_type == "L" | municipality_type == "R") %>%
+  distinct(Del, municipality, municipality_type, gender, mean_del_final) %>%
+  arrange(municipality)
+
+kontroll2 <- brpplus_stand_maxmin_final %>%
+  filter(municipality_type == "R") %>%
+  arrange(mean_tema_final)
+
+
+
+# ####
+
+
+
+
+
+
+#
+# Kolada ska motta fyra filer (alla ska innehålla väden för Riket): 
+#
+#   1. Totalindex kommun
+#        Region; Del; Kön; Värde
+#
+#   2. Temaindex kommun
+#         Region; Del; Tema; Kön; Värde
+#
+#   3. Totalindex region
+#        Region; Del; Kön; Värde
+#
+#   4. Temaindex region
+#         Region; Del; Tema; Kön; Värde
+#
+
+
+# OBS! Nedan export är ännu inte validerad (2026-02-01) #### 
 
 ################################################################################
 ### Exportera till 2 filer för kommun & region
