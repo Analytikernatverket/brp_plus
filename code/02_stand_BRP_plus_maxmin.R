@@ -390,22 +390,28 @@ kontroll1 <- brpplus_stand_maxmin_final %>%
   filter(Del == "Livskvalitet", 
          gender == "T", 
          municipality_type == "L" | municipality_type == "R") %>%
-  distinct(Del, municipality, municipality_type, gender, mean_del_final) %>%
+  distinct(Del, municipality, municipality_type, gender, mean_region_del_final) %>%
   arrange(municipality)
 
 kontroll2 <- brpplus_stand_maxmin_final %>%
   filter(municipality_type == "R") %>%
-  arrange(mean_tema_final)
+  arrange(mean_region_tema_final)
 
 
 
 # ####
 
+# Snabb export [förbättringspotential!]
 
+csv_path <- here::here("data", "brpplus_stand_maxmin_final.csv")
 
+write.csv2(
+  brpplus_stand_maxmin_final,
+  file = csv_path,
+  row.names = FALSE
+)
 
-
-
+∑
 #
 # Kolada ska motta fyra filer (alla ska innehålla väden för Riket): 
 #
@@ -421,6 +427,10 @@ kontroll2 <- brpplus_stand_maxmin_final %>%
 #   4. Temaindex region
 #         Region; Del; Tema; Kön; Värde
 #
+
+
+
+
 
 
 # OBS! Nedan export är ännu inte validerad (2026-02-01) #### 
