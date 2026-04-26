@@ -22,23 +22,21 @@ pacman::p_loaded(here, rKolada, dplyr, purrr, stringr)
 
 # 1. Importera brpplus_data_base ####
 # 1.1. Sätt path och packa upp
-# zip_path <- here::here("R-program", "102_BRPplus_nyckeltalsbeskrivningar", "BRP_plus_data_base.zip")
-zip_path <- "~/R-program/102_BRPplus_nyckeltalsbeskrivningar/BRP_plus_data_base.zip"
+# Hitta mapp där hela RProject är sparat och skapa path för /brpplus_data_base ZIP-filen med brpplus_data_base_base
+zip_path <- here::here("data", "BRP_plus_data_base.zip")
 
-
-# 1.2. Öppna upp zip-filen i 'temp' och läs in CSV-filen
+# One-block: unzip to temp, read CSV, remove temp automatically
 brpplus_data_base <- {
-  tmp_dir <- tempdir()
-  extracted_files <- unzip(zip_path, exdir = tmp_dir)
-  csv_files <- extracted_files[grepl("\\.csv$", extracted_files, ignore.case = TRUE)]
-  if(length(csv_files) == 0) stop("No CSV file found in the ZIP!")
-  
-  # Läs den första CSV-filen
-  read.csv2(csv_files[1], stringsAsFactors = FALSE)
+  tmp_dir <- tempdir() # create a temporary folder
+  unzip(zip_path, exdir = tmp_dir) # unzip the CSV to the temp folder
+  csv_file <- list.files(tmp_dir, pattern = "\\.csv$", full.names = TRUE) # find the CSV file (assumes only one CSV in the ZIP)
+  read.csv2(csv_file, stringsAsFactors = FALSE) # read CSV
 }
 
-# Kontrollera att filen importerades
+# Kontrollera att importen fungerade
 head(brpplus_data_base)
+n_distinct(brpplus_data_base$kpi)
+
 
 #    ####
 
@@ -340,7 +338,6 @@ print(BRPplus_tema_desc)
 
 # Stickprov
 BRPplus_tema_desc$Information_regionindex_totalt[5]
-BRPplus_tema_desc$Information_regionindex_totalt[final_table_dynamic$Tema == "Hållbarhet"]
 
 # 4.3. Lägg på kolumn 'sorting'  
 #      (Denna del kan tas bort genom att ha med kolumnen redan i BRPplus_data_base.csv)
@@ -378,9 +375,13 @@ BRPplus_tema_desc <- BRPplus_tema_desc %>%
 
 # 5. Export ####
 # Exportera filen
-write.csv2(BRPplus_tema_desc, 
-           file = "~/R-program/102_BRPplus_nyckeltalsbeskrivningar/BRPplus_tema_desc.csv",  
-           row.names = FALSE)
+csv_path <- here::here("data", "BRPplus_tema_desc.csv")
+
+write.csv2(
+  BRPplus_tema_desc,
+  file = csv_path,
+  row.names = FALSE
+)
 
 #    ####
 

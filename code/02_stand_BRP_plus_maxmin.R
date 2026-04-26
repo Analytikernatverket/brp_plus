@@ -411,7 +411,7 @@ write.csv2(
   row.names = FALSE
 )
 
-∑
+
 #
 # Kolada ska motta fyra filer (alla ska innehålla väden för Riket): 
 #
