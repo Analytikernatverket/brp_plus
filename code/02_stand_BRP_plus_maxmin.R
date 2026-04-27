@@ -1,9 +1,10 @@
 
 # Import av BRP_plus_brpplus_data_base_base ####
 if (!require("pacman")) install.packages("pacman") 
-pacman::p_load(tidyverse, rKolada, readxl, pbapply, here, conflicted) # Ladda paket, eller installera dem om de inte finns och ladda dem sen
+pacman::p_load(tidyverse, rKolada, readxl, pbapply, readr, here, conflicted) # Ladda paket, eller installera dem om de inte finns och ladda dem sen
 conflicted::conflict_prefer("filter", "dplyr") # Om flera paket har funktionen "filter()" använd alltid dplyr-paketet som sandard för "filter()" 
 conflicted::conflict_prefer("lag", "dplyr") # Om flera paket har funktionen "lag()" använd alltid dplyr-paketet som sandard för "lag()" 
+conflicted::conflict_prefer("left_join", "dplyr") # Om flera paket har funktionen "lag()" använd alltid dplyr-paketet som sandard för "lag()" 
 
 # Om nödvändigt, rensa Environment
 #  rm(list=ls())
@@ -429,11 +430,309 @@ write.csv2(
 #
 
 
+# Intro ####
+# Kolada ska ha fyra filer levererat i fyra separata XLSX-filer: 
+#    1.kolada_totalindex_kommunYYYY
+#    2.kolada_temaindex_kommunYYYY
+#    3.kolada_totalindex_regionYYYY
+#    4.kolada_temaindex_regionYYYY
+
+start_path <- here::here("data")
+
+start_kommun_kodnyckel_tbl <- readr::read_csv2(
+  file = file.path(start_path, "start_kommun_kodnyckel_tbl.csv"),
+  locale = locale(encoding = "UTF-8"),
+  col_types = cols(Kommun_kod = col_character()),
+  show_col_types = FALSE
+)
+
+start_region_kodnyckel_tbl <- readr::read_csv2(
+  file = paste0(start_path, "/start_region_kodnyckel_tbl.csv"),
+  locale = locale(encoding = "UTF-8"),  
+  col_types = cols(Lan_kod = col_character()),
+  show_col_types = FALSE
+)
+
+start_riket_kodnyckel_tbl <- readr::read_csv2(
+  file = paste0(start_path, "/start_riket_kodnyckel_tbl.csv"),
+  locale = locale(encoding = "UTF-8"),  
+  col_types = cols(Lan_kod = col_character()),
+  show_col_types = FALSE
+)
+
+
+# Justera stämpelåret manuellt, det används bara i exporten
+stämpelår <- 2025 
+
+# ####
+
+# 1.kolada_totalindex_kommunYYYY ####
+# 1.a. Välj ut kolumner
+kolada_totalindex_kommun_raw <- brpplus_stand_maxmin_final %>%
+  filter(municipality_type == "K" | municipality_type == "R") %>%
+  distinct(municipality_id, municipality, Del, gender, mean_kommun_del_final) %>%
+  arrange(municipality_id)
+
+# 1.b. Joina med geografiska namn
+kolada_totalindex_kommun_joined <- kolada_totalindex_kommun_raw %>%
+  mutate(municipality_id = as.character(municipality_id)) %>%
+  left_join(
+    start_kommun_kodnyckel_tbl %>%
+      select(Kommun_kod, Kommun_kod_S, Kommun_namn),
+    by = c("municipality_id" = "Kommun_kod")
+  ) %>%
+  mutate(
+    Kommun_kod_S_namn = paste0(Kommun_kod_S, " ", Kommun_namn)
+  )
+
+# 1.c. Städa upp datat och skapa slutgiltlig tabell
+kolada_totalindex_kommun <- kolada_totalindex_kommun_joined %>%
+  
+  # Byt namn på gender -> Kon och recoda värdena
+  rename(Kon = gender) %>%
+  mutate(
+    Kon = recode(
+      Kon,
+      "K" = "Kvinnor",
+      "M" = "Män",
+      "T" = "Totalt",
+      .default = Kon
+    )
+  ) %>%
+  
+  # Byt namn Kommun_kod_S_namn -> Region
+  rename(Region = Kommun_kod_S_namn) %>%
+  
+  # Byt namn mean_kommun_del_final -> Varde_stand
+  rename(Varde_stand = mean_kommun_del_final) %>%
+  
+  # Lägg till Riket-variabler
+  mutate(
+    Region = if_else(is.na(Kommun_kod_S), "00 Riket", Region)) %>%
+  
+  # Ta bort kolumner
+  select(-municipality_id, -municipality, -Kommun_kod_S, -Kommun_namn) %>%
+  
+  # Ange ordning för kolumner 
+  select(Region, Del, Kon, Varde_stand, everything()) %>%
+  
+  # Sortera datat
+  arrange(Region, Del, Kon)
+
+# ####
+
+# 2.kolada_temaindex_kommunYYYY ####
+# 2.a. Välj ut kolumner
+kolada_temaindex_kommun_raw <- brpplus_stand_maxmin_final %>%
+  filter(municipality_type == "K" | municipality_type == "R") %>%
+  distinct(municipality_id, municipality, Del, Tema, gender, mean_kommun_tema_final) %>%
+  arrange(municipality_id)
+
+# 2.b. Joina med geografiska namn
+kolada_temaindex_kommun_joined <- kolada_temaindex_kommun_raw %>%
+  mutate(municipality_id = as.character(municipality_id)) %>%
+  left_join(
+    start_kommun_kodnyckel_tbl %>%
+      select(Kommun_kod, Kommun_kod_S, Kommun_namn),
+    by = c("municipality_id" = "Kommun_kod")
+  ) %>%
+  mutate(
+    Kommun_kod_S_namn = paste0(Kommun_kod_S, " ", Kommun_namn)
+  )
+
+# 2.c. Städa upp datat och skapa slutgiltlig tabell
+kolada_temaindex_kommun <- kolada_temaindex_kommun_joined %>%
+  
+  # Byt namn på gender -> Kon och recoda värdena
+  rename(Kon = gender) %>%
+  mutate(
+    Kon = recode(
+      Kon,
+      "K" = "Kvinnor",
+      "M" = "Män",
+      "T" = "Totalt",
+      .default = Kon
+    )
+  ) %>%
+  
+  # Byt namn Kommun_kod_S_namn -> Region
+  rename(Region = Kommun_kod_S_namn) %>%
+  
+  # Byt namn mean_kommun_del_final -> Varde_stand
+  rename(Varde_stand = mean_kommun_tema_final) %>%
+  
+  # Lägg till Riket-variabler
+  mutate(
+    Region = if_else(is.na(Kommun_kod_S), "00 Riket", Region)) %>%
+  
+  # Ta bort kolumner
+  select(-municipality_id, -municipality, -Kommun_kod_S, -Kommun_namn) %>%
+  
+  # Ange ordning för kolumner 
+  select(Region, Del, Kon, Tema, Varde_stand, everything()) %>%
+  
+  # Sortera datat
+  arrange(Region, Del, Kon, Tema) %>%
+  
+  # Fixa Teman
+  mutate(Tema = sub(" - .*", "", Tema))
+
+# ####
+
+# 3.kolada_totalindex_regionYYYY ####
+# 3.a. Välj ut regioner
+kolada_totalindex_region_raw <- brpplus_stand_maxmin_final %>%
+  filter(municipality_type == "L" | municipality_type == "R") %>%
+  distinct(municipality_id, municipality, Del, gender, mean_region_del_final) %>%
+  arrange(municipality_id)
+
+# 3.b. Joina med geografiska namn
+kolada_totalindex_region_joined <- kolada_totalindex_region_raw %>%
+  mutate(municipality_id = as.character(municipality_id)) %>%
+  left_join(
+    start_region_kodnyckel_tbl %>%
+      mutate(Lan_kod = as.character(Lan_kod)) %>%
+      select(Lan_kod, Lan_kod_S, Lan_Namn),
+    by = c("municipality_id" = "Lan_kod")
+  ) %>%
+  mutate(
+    Lan_kod_S_namn = paste0(Lan_kod_S, " ", Lan_Namn)
+  )
+
+# 3.c. Städa upp datat och skapa slutgiltlig tabell
+kolada_totalindex_region <- kolada_totalindex_region_joined %>%
+  
+  # Byt namn på gender -> Kon och recoda värdena
+  rename(Kon = gender) %>%
+  mutate(
+    Kon = recode(
+      Kon,
+      "K" = "Kvinnor",
+      "M" = "Män",
+      "T" = "Totalt",
+      .default = Kon
+    )
+  ) %>%
+  
+  # Byt namn Lan_kod_S_namn -> Region
+  rename(Region = Lan_kod_S_namn) %>%
+  
+  # Byt namn mean_kommun_del_final -> Varde_stand
+  rename(Varde_stand = mean_region_del_final) %>%
+  
+  # Lägg till Riket-variabler
+  mutate(
+    Region = if_else(is.na(Lan_kod_S), "00 Riket", Region)) %>%
+  
+  # Ta bort kolumner
+  select(-municipality_id, -municipality, -Lan_kod_S, -Lan_Namn) %>%
+  
+  # Ange ordning för kolumner 
+  select(Region, Del, Kon, Varde_stand, everything()) %>%
+  
+  # Sortera datat
+  arrange(Region, Del, Kon)
+
+# ####
+
+# 4.kolada_temaindex_regionYYYY ####
+# 4.a. Välj ut regioner
+kolada_temaindex_region_raw <- brpplus_stand_maxmin_final %>%
+  filter(municipality_type == "L" | municipality_type == "R") %>%
+  distinct(municipality_id, municipality, Del, Tema, gender, mean_region_tema_final) %>%
+  arrange(municipality_id)
+
+# 4.b. Joina med geografiska namn
+kolada_temaindex_region_joined <- kolada_temaindex_region_raw %>%
+  mutate(municipality_id = as.character(municipality_id)) %>%
+  left_join(
+    start_region_kodnyckel_tbl %>%
+      mutate(Lan_kod = as.character(Lan_kod)) %>%
+      select(Lan_kod, Lan_kod_S, Lan_Namn),
+    by = c("municipality_id" = "Lan_kod")
+  ) %>%
+  mutate(
+    Lan_kod_S_namn = paste0(Lan_kod_S, " ", Lan_Namn)
+  )
+
+# 4.c. Städa upp datat och skapa slutgiltlig tabell
+kolada_temaindex_region <- kolada_temaindex_region_joined %>%
+  
+  # Byt namn på gender -> Kon och recoda värdena
+  rename(Kon = gender) %>%
+  mutate(
+    Kon = recode(
+      Kon,
+      "K" = "Kvinnor",
+      "M" = "Män",
+      "T" = "Totalt",
+      .default = Kon
+    )
+  ) %>%
+  
+  # Byt namn Lan_kod_S_namn -> Region
+  rename(Region = Lan_kod_S_namn) %>%
+  
+  # Byt namn mean_kommun_del_final -> Varde_stand
+  rename(Varde_stand = mean_region_tema_final) %>%
+  
+  # Lägg till Riket-variabler
+  mutate(
+    Region = if_else(is.na(Lan_kod_S), "00 Riket", Region)) %>%
+  
+  # Ta bort kolumner
+  select(-municipality_id, -municipality, -Lan_kod_S, -Lan_Namn) %>%
+  
+  # Ange ordning för kolumner 
+  select(Region, Del, Kon, Tema, Varde_stand, everything()) %>%
+  
+  # Sortera datat
+  arrange(Region, Del, Kon, Tema) %>%
+  
+  # Fixa Teman
+  mutate(Tema = sub(" - .*", "", Tema))
+
+
+# ####
+
+# Export ####
+# Export-mapp
+export_dir <- here::here("data")
+
+# 1. kolada_totalindex_kommunYYYY
+readr::write_csv2(
+  kolada_totalindex_kommun,
+  file.path(export_dir, paste0("1.kolada_totalindex_kommun", stämpelår, ".csv"))
+)
+
+# 2. kolada_temaindex_kommunYYYY
+readr::write_csv2(
+  kolada_temaindex_kommun,
+  file.path(export_dir, paste0("2.kolada_temaindex_kommun", stämpelår, ".csv"))
+)
+
+# 3. kolada_totalindex_regionYYYY
+readr::write_csv2(
+  kolada_totalindex_region,
+  file.path(export_dir, paste0("3.kolada_totalindex_region", stämpelår, ".csv"))
+)
+
+# 4. kolada_temaindex_regionYYYY
+readr::write_csv2(
+  kolada_temaindex_region,
+  file.path(export_dir, paste0("4.kolada_temaindex_region", stämpelår, ".csv"))
+)
+# ####
 
 
 
 
-# OBS! Nedan export är ännu inte validerad (2026-02-01) #### 
+# ###############################################################
+
+# OBS! Nedan export-funktion är ännu inte validerad (2026-02-01), ovan export används #### 
+
+# ###############################################################
+
 
 ################################################################################
 ### Exportera till 2 filer för kommun & region
