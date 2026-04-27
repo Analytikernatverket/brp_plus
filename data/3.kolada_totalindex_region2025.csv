@@ -1,0 +1,133 @@
+Region;Del;Kon;Varde_stand
+00 Riket;Hållbarhet;Kvinnor;30,4069722058805
+00 Riket;Hållbarhet;Män;57,4974865466979
+00 Riket;Hållbarhet;Totalt;47,9381553896484
+00 Riket;Livskvalitet;Kvinnor;45,7587640522619
+00 Riket;Livskvalitet;Män;55,8939129765746
+00 Riket;Livskvalitet;Totalt;51,2264190261754
+01 Stockholms län;Hållbarhet;Kvinnor;63,3012669398803
+01 Stockholms län;Hållbarhet;Män;97,4638764430280
+01 Stockholms län;Hållbarhet;Totalt;71,5813804912898
+01 Stockholms län;Livskvalitet;Kvinnor;58,4829759393136
+01 Stockholms län;Livskvalitet;Män;58,8917767648008
+01 Stockholms län;Livskvalitet;Totalt;56,6844882637809
+03 Uppsala län;Hållbarhet;Kvinnor;44,4215313474036
+03 Uppsala län;Hållbarhet;Män;62,5183561115422
+03 Uppsala län;Hållbarhet;Totalt;59,2447781218469
+03 Uppsala län;Livskvalitet;Kvinnor;47,6219351468699
+03 Uppsala län;Livskvalitet;Män;56,1918893710942
+03 Uppsala län;Livskvalitet;Totalt;51,2520488633332
+04 Södermanlands län;Hållbarhet;Kvinnor;20,0349505532093
+04 Södermanlands län;Hållbarhet;Män;49,3460146270829
+04 Södermanlands län;Hållbarhet;Totalt;38,6931629318610
+04 Södermanlands län;Livskvalitet;Kvinnor;25,1481738647973
+04 Södermanlands län;Livskvalitet;Män;43,5588216174551
+04 Södermanlands län;Livskvalitet;Totalt;32,7634776639872
+05 Östergötlands län;Hållbarhet;Kvinnor;25,2023539882574
+05 Östergötlands län;Hållbarhet;Män;59,2352515512173
+05 Östergötlands län;Hållbarhet;Totalt;57,5631653988331
+05 Östergötlands län;Livskvalitet;Kvinnor;49,1079873966364
+05 Östergötlands län;Livskvalitet;Män;55,7658842071204
+05 Östergötlands län;Livskvalitet;Totalt;51,8631243124653
+06 Jönköpings län;Hållbarhet;Kvinnor;28,9128774113061
+06 Jönköpings län;Hållbarhet;Män;58,8110792276897
+06 Jönköpings län;Hållbarhet;Totalt;47,7519704603301
+06 Jönköpings län;Livskvalitet;Kvinnor;47,6356921867098
+06 Jönköpings län;Livskvalitet;Män;63,4404287943268
+06 Jönköpings län;Livskvalitet;Totalt;55,8544834636825
+07 Kronobergs län;Hållbarhet;Kvinnor;31,6388163029813
+07 Kronobergs län;Hållbarhet;Män;55,2400783489130
+07 Kronobergs län;Hållbarhet;Totalt;51,9517168998428
+07 Kronobergs län;Livskvalitet;Kvinnor;35,5753621179633
+07 Kronobergs län;Livskvalitet;Män;53,9293569026506
+07 Kronobergs län;Livskvalitet;Totalt;46,3781441878249
+08 Kalmar län;Hållbarhet;Kvinnor;22,9731683246960
+08 Kalmar län;Hållbarhet;Män;60,7773005857915
+08 Kalmar län;Hållbarhet;Totalt;41,0443058805476
+08 Kalmar län;Livskvalitet;Kvinnor;46,8937925548335
+08 Kalmar län;Livskvalitet;Män;52,2989508072586
+08 Kalmar län;Livskvalitet;Totalt;49,9854299248615
+09 Gotlands län;Hållbarhet;Kvinnor;28,7833192570726
+09 Gotlands län;Hållbarhet;Män;45,5516182363146
+09 Gotlands län;Hållbarhet;Totalt;38,1381451490594
+09 Gotlands län;Livskvalitet;Kvinnor;57,7109850158511
+09 Gotlands län;Livskvalitet;Män;59,2531341500929
+09 Gotlands län;Livskvalitet;Totalt;61,4324558410411
+10 Blekinge län;Hållbarhet;Kvinnor;20,7063894666878
+10 Blekinge län;Hållbarhet;Män;46,1302923282416
+10 Blekinge län;Hållbarhet;Totalt;46,1905079156248
+10 Blekinge län;Livskvalitet;Kvinnor;46,4817903400517
+10 Blekinge län;Livskvalitet;Män;54,0247656265369
+10 Blekinge län;Livskvalitet;Totalt;49,3079222600353
+12 Skåne län;Hållbarhet;Kvinnor;24,3970214085891
+12 Skåne län;Hållbarhet;Män;51,1724923582178
+12 Skåne län;Hållbarhet;Totalt;47,2022085394467
+12 Skåne län;Livskvalitet;Kvinnor;45,9493384579985
+12 Skåne län;Livskvalitet;Män;48,6028423032162
+12 Skåne län;Livskvalitet;Totalt;46,5891981674207
+13 Hallands län;Hållbarhet;Kvinnor;44,3014098630858
+13 Hallands län;Hållbarhet;Män;69,9015799213961
+13 Hallands län;Hållbarhet;Totalt;47,8501427833022
+13 Hallands län;Livskvalitet;Kvinnor;59,0566058059489
+13 Hallands län;Livskvalitet;Män;70,6465297994942
+13 Hallands län;Livskvalitet;Totalt;64,6971081899477
+14 Västra Götalands län;Hållbarhet;Kvinnor;31,2932104359375
+14 Västra Götalands län;Hållbarhet;Män;61,9728898843386
+14 Västra Götalands län;Hållbarhet;Totalt;57,8814303436344
+14 Västra Götalands län;Livskvalitet;Kvinnor;47,1668358951587
+14 Västra Götalands län;Livskvalitet;Män;60,6300094128859
+14 Västra Götalands län;Livskvalitet;Totalt;52,5471661999212
+17 Värmlands län;Hållbarhet;Kvinnor;17,8806070248486
+17 Värmlands län;Hållbarhet;Män;52,2199245832245
+17 Värmlands län;Hållbarhet;Totalt;44,8459461023519
+17 Värmlands län;Livskvalitet;Kvinnor;34,1073019161805
+17 Värmlands län;Livskvalitet;Män;55,2560440398822
+17 Värmlands län;Livskvalitet;Totalt;44,7018819874212
+18 Örebro län;Hållbarhet;Kvinnor;17,0512492105200
+18 Örebro län;Hållbarhet;Män;43,5127546769104
+18 Örebro län;Hållbarhet;Totalt;41,8767867479716
+18 Örebro län;Livskvalitet;Kvinnor;41,4101571207909
+18 Örebro län;Livskvalitet;Män;52,0058333989079
+18 Örebro län;Livskvalitet;Totalt;46,6214815304153
+19 Västmanlands län;Hållbarhet;Kvinnor;26,7512558202880
+19 Västmanlands län;Hållbarhet;Män;44,6824421355555
+19 Västmanlands län;Hållbarhet;Totalt;42,6374388666685
+19 Västmanlands län;Livskvalitet;Kvinnor;27,3561168300952
+19 Västmanlands län;Livskvalitet;Män;45,3225653483298
+19 Västmanlands län;Livskvalitet;Totalt;38,1408626546908
+20 Dalarnas län;Hållbarhet;Kvinnor;35,3335187496120
+20 Dalarnas län;Hållbarhet;Män;58,1051845167381
+20 Dalarnas län;Hållbarhet;Totalt;42,6232026368408
+20 Dalarnas län;Livskvalitet;Kvinnor;39,0550834333577
+20 Dalarnas län;Livskvalitet;Män;52,0190029586167
+20 Dalarnas län;Livskvalitet;Totalt;45,9514720296972
+21 Gävleborgs län;Hållbarhet;Kvinnor;15,6812182601990
+21 Gävleborgs län;Hållbarhet;Män;48,4872797666219
+21 Gävleborgs län;Hållbarhet;Totalt;39,0204833577217
+21 Gävleborgs län;Livskvalitet;Kvinnor;36,4206613436024
+21 Gävleborgs län;Livskvalitet;Män;48,3366424828370
+21 Gävleborgs län;Livskvalitet;Totalt;42,5995956089184
+22 Västernorrlands län;Hållbarhet;Kvinnor;30,1954611908491
+22 Västernorrlands län;Hållbarhet;Män;50,8025893536428
+22 Västernorrlands län;Hållbarhet;Totalt;42,7415263345582
+22 Västernorrlands län;Livskvalitet;Kvinnor;53,6082137353574
+22 Västernorrlands län;Livskvalitet;Män;52,9404929342850
+22 Västernorrlands län;Livskvalitet;Totalt;50,7352296514046
+23 Jämtlands län;Hållbarhet;Kvinnor;32,6084257090684
+23 Jämtlands län;Hållbarhet;Män;64,8355938166510
+23 Jämtlands län;Hållbarhet;Totalt;47,0094784332907
+23 Jämtlands län;Livskvalitet;Kvinnor;43,0178513615590
+23 Jämtlands län;Livskvalitet;Män;54,1848243064936
+23 Jämtlands län;Livskvalitet;Totalt;50,4868500997701
+24 Västerbottens län;Hållbarhet;Kvinnor;42,8515480047288
+24 Västerbottens län;Hållbarhet;Män;75,7468138268019
+24 Västerbottens län;Hållbarhet;Totalt;60,2742587269482
+24 Västerbottens län;Livskvalitet;Kvinnor;64,7319127921076
+24 Västerbottens län;Livskvalitet;Män;71,8771841209171
+24 Västerbottens län;Livskvalitet;Totalt;72,2846040974471
+25 Norrbottens län;Hållbarhet;Kvinnor;34,2268170542701
+25 Norrbottens län;Hållbarhet;Män;50,9338051807373
+25 Norrbottens län;Hållbarhet;Totalt;40,5792270606451
+25 Norrbottens län;Livskvalitet;Kvinnor;54,3952718423165
+25 Norrbottens län;Livskvalitet;Män;64,5951931608655
+25 Norrbottens län;Livskvalitet;Totalt;64,8777745516168
